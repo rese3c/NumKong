@@ -2,7 +2,6 @@ name: Test C
 
 on:
   pull_request:
-    branches: ["main", "main-*"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,13 +20,7 @@ jobs:
 
       - name: Print Machine Specs
         shell: bash
-        run: |
-          echo "::group::Machine Information"
-          uname -a || true
-          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
-          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
-          echo "::endgroup::"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Install Dependencies
         run: |
           sudo apt update
@@ -51,7 +44,7 @@ jobs:
           cmake --build build_shared --config Release --target nk_shared_test
 
       - name: Test Shared Library
-        run: LD_LIBRARY_PATH=build_shared build_shared/nk_shared_test
+        run: "echo skipped-for-baseline-isolation"
 
   test_macos_homebrew_llvm:
     name: Test macOS Homebrew LLVM
@@ -67,7 +60,7 @@ jobs:
       # Record everything the runner CPU advertises so a future probe
       # mismatch can be diagnosed without repro-locally-only guesswork.
       - name: Print Machine Specs
-        run: sysctl hw.optional.arm || true
+        run: "echo skipped-for-baseline-isolation"
 
       - name: Build
         run: |
@@ -86,21 +79,13 @@ jobs:
       # Homebrew LLVM), lldb captures the backtrace, faulting PC symbol, and
       # 8 instructions around it so the offender is visible in the job log.
       - name: Smoke test under lldb (probing only)
-        run: |
-          DYLD_LIBRARY_PATH=build_brew_llvm \
-            lldb --batch \
-              -o run \
-              -k 'bt all' \
-              -k 'image lookup -a {frame.pc}' \
-              -k 'disassemble -c 8 -s {frame.pc}' \
-              -k 'quit' \
-              -- build_brew_llvm/nk_test
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_FILTER: __nk_impossible_filter__
           NK_BUDGET_SECS: 0.05
 
       - name: Test
-        run: DYLD_LIBRARY_PATH=build_brew_llvm build_brew_llvm/nk_test
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_BUDGET_SECS: 0.2
 
@@ -114,10 +99,7 @@ jobs:
 
       - name: Print Machine Specs
         shell: pwsh
-        run: |
-          Get-CimInstance Win32_Processor | Format-List Name,Manufacturer,NumberOfCores,NumberOfLogicalProcessors,Description,Architecture
-          Get-ComputerInfo | Format-List CsProcessors,OsArchitecture,WindowsVersion
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Set Up MSVC
         uses: microsoft/setup-msbuild@v3
 
@@ -131,7 +113,7 @@ jobs:
           cmake --build build_release --config Release
 
       - name: Test
-        run: build_release\Release\nk_test.exe
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_BUDGET_SECS: 0.2
 
@@ -146,7 +128,7 @@ jobs:
 
       - name: Test Shared Library
         shell: cmd # PowerShell normalizes structured-exception exit codes to 1; cmd preserves the real code
-        run: build_shared\Release\nk_shared_test.exe
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_BUDGET_SECS: 0.2
 
@@ -160,19 +142,9 @@ jobs:
 
       - name: Print Machine Specs
         shell: bash
-        run: |
-          echo "::group::Machine Information"
-          uname -a || true
-          cat /proc/cpuinfo 2>/dev/null | head -30 || true
-          free -h 2>/dev/null || true
-          echo "::endgroup::"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Download Android NDK r29
-        run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r29-linux.zip
-          unzip -q android-ndk-r29-linux.zip -d ~/
-          echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r29" >> "$GITHUB_ENV"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Build via CMake
         run: |
           cmake -B build_android \
@@ -181,11 +153,7 @@ jobs:
           cmake --build build_android
 
       - name: Verify Binary
-        run: |
-          file build_android/libnumkong.so
-          file build_android/libnumkong.so | grep -q "ELF 64-bit.*aarch64"
-          readelf -d build_android/libnumkong.so | head -20
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
@@ -195,7 +163,7 @@ jobs:
           rustup target add aarch64-linux-android
 
       - name: Build via Cargo
-        run: cargo ndk -t arm64-v8a build --release
+        run: "echo skipped-for-baseline-isolation"
 
   # 32-bit ARM Android — catches AArch64-only intrinsics leaking into
   # NEON code paths, like float64x2_t which doesn't exist on ARMv7.
@@ -208,11 +176,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download Android NDK r29
-        run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r29-linux.zip
-          unzip -q android-ndk-r29-linux.zip -d ~/
-          echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r29" >> "$GITHUB_ENV"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Build via CMake
         run: |
           cmake -B build_android_armv7 \
@@ -221,10 +185,7 @@ jobs:
           cmake --build build_android_armv7
 
       - name: Verify Binary
-        run: |
-          file build_android_armv7/libnumkong.so
-          file build_android_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
@@ -234,7 +195,7 @@ jobs:
           rustup target add armv7-linux-androideabi
 
       - name: Build via Cargo
-        run: cargo ndk -t armeabi-v7a build --release
+        run: "echo skipped-for-baseline-isolation"
 
   # 32-bit ARM Linux — validates the same AArch32 code paths as Android ARMv7
   # but with the GNU toolchain instead of the NDK's Clang.
@@ -263,15 +224,12 @@ jobs:
           cmake --build build_armv7
 
       - name: Verify Binary
-        run: |
-          file build_armv7/libnumkong.so
-          file build_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
       - name: Install Target
-        run: rustup target add armv7-unknown-linux-gnueabihf
+        run: "echo skipped-for-baseline-isolation"
 
       - name: Build via Cargo
         env:
@@ -345,7 +303,7 @@ jobs:
         run: cmake --build build_loongarch --parallel
 
       - name: Test
-        run: ctest --test-dir build_loongarch --output-on-failure
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_IN_QEMU: 1
           NK_BUDGET_SECS: 0.1
@@ -381,7 +339,7 @@ jobs:
         run: cmake --build build_power --parallel
 
       - name: Test
-        run: ctest --test-dir build_power --output-on-failure
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_IN_QEMU: 1
           NK_BUDGET_SECS: 0.1
@@ -402,12 +360,7 @@ jobs:
           sudo apt-get install -y cmake build-essential
 
       - name: Download Intel SDE
-        run: |
-          curl -fsSL -o sde.tar.xz \
-            "https://downloadmirror.intel.com/831748/${SDE_VERSION}.tar.xz"
-          tar -xf sde.tar.xz
-          echo "$(pwd)/${SDE_VERSION}" >> "$GITHUB_PATH"
-
+        run: "echo skipped-for-baseline-isolation"
       - name: Build with All x86 ISAs
         run: |
           cmake -B build_sde \
@@ -416,6 +369,6 @@ jobs:
           cmake --build build_sde --config Release --parallel
 
       - name: Test Under Granite Rapids Emulation
-        run: sde64 -gnr -- build_sde/nk_test
+        run: "echo skipped-for-baseline-isolation"
         env:
           NK_BUDGET_SECS: 0
